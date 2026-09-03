@@ -1,0 +1,2 @@
+# pass-hive
+password manager
