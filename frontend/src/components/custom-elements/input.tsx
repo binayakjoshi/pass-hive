@@ -1,0 +1,282 @@
+"use client";
+
+import type React from "react";
+import { useReducer, useEffect, useRef, type ReactNode } from "react";
+
+import {
+  TextField,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+  MenuItem,
+} from "@mui/material";
+
+import { validate, type Validator } from "@/lib/validators";
+
+interface InputState {
+  value: string | boolean;
+  isTouched: boolean;
+  isValid: boolean;
+}
+
+interface InputAction {
+  type: "CHANGE" | "TOUCH";
+  val?: string | boolean;
+  validators?: Validator[];
+}
+
+interface RadioOption {
+  value: string;
+  label: string;
+  icon?: ReactNode;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+  icon?: ReactNode;
+}
+
+interface CustomInputProps {
+  id: string;
+  element: "input" | "textarea" | "radio" | "select";
+  type?: string;
+  label?: string;
+  placeholder?: string;
+  readOnly?: boolean;
+  rows?: number;
+  value?: any;
+  initialValue?: string | boolean;
+  initialValid?: boolean;
+  validators?: Validator[];
+  errorText?: string;
+  onInput: (id: string, value: string | boolean, isValid: boolean) => void;
+  name?: string;
+  options?: RadioOption[] | SelectOption[];
+  selectLabel?: string;
+  className?: string;
+  description?: string;
+  required?: boolean;
+  height?: number;
+  autocomplete?: string;
+  endAdornment?: ReactNode;
+  sx?: object;
+}
+
+const inputReducer = (state: InputState, action: InputAction): InputState => {
+  switch (action.type) {
+    case "CHANGE": {
+      if (action.val === undefined) return state;
+      if (typeof action.val === "boolean") {
+        return { ...state, value: action.val, isValid: true };
+      }
+      if (!action.validators) return state;
+      return {
+        ...state,
+        value: action.val,
+        isValid: validate(action.val, action.validators),
+      };
+    }
+    case "TOUCH":
+      return { ...state, isTouched: true };
+    default:
+      return state;
+  }
+};
+
+const Input: React.FC<CustomInputProps> = (props) => {
+  const [inputState, dispatch] = useReducer(inputReducer, {
+    value: props.initialValue || "",
+    isTouched: false,
+    isValid: props.initialValid || false,
+  });
+
+  const { id } = props;
+  const { value, isValid } = inputState;
+
+  const onInputRef = useRef(props.onInput);
+  useEffect(() => {
+    onInputRef.current = props.onInput;
+  });
+
+  useEffect(() => {
+    onInputRef.current(id, value, isValid);
+  }, [id, value, isValid]);
+
+  const prevInitialValueRef = useRef(props.initialValue);
+
+  const validatorsRef = useRef(props.validators);
+  useEffect(() => {
+    validatorsRef.current = props.validators;
+  });
+
+  useEffect(() => {
+    if (
+      props.initialValue !== undefined &&
+      props.initialValue !== prevInitialValueRef.current
+    ) {
+      prevInitialValueRef.current = props.initialValue;
+      dispatch({
+        type: "CHANGE",
+        val: props.initialValue,
+        validators: validatorsRef.current,
+      });
+    }
+  }, [props.initialValue]);
+
+  const changeHandler = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    dispatch({
+      type: "CHANGE",
+      val: event.target.value,
+      validators: props.validators,
+    });
+  };
+
+  const touchHandler = () => {
+    dispatch({ type: "TOUCH" });
+  };
+
+  const isError = !inputState.isValid && inputState.isTouched;
+
+  const isDateLikeType =
+    props.type === "date" ||
+    props.type === "time" ||
+    props.type === "datetime-local" ||
+    props.type === "month" ||
+    props.type === "week";
+
+  if (props.element === "input" || props.element === "textarea") {
+    return (
+      <TextField
+        id={props.id}
+        label={props.label}
+        type={props.element === "textarea" ? undefined : props.type || "text"}
+        multiline={props.element === "textarea"}
+        rows={props.element === "textarea" ? props.rows || 3 : undefined}
+        placeholder={props.placeholder}
+        value={inputState.value}
+        onChange={changeHandler}
+        onBlur={touchHandler}
+        error={isError}
+        helperText={isError ? props.errorText : undefined}
+        required={props.required}
+        fullWidth
+        slotProps={{
+          inputLabel: isDateLikeType ? { shrink: true } : undefined,
+          input: {
+            readOnly: props.readOnly,
+            autoComplete: props.autocomplete,
+            endAdornment: props.endAdornment,
+            sx: {
+              height: props.height ? `${props.height}px` : "56px",
+              ...(isDateLikeType && {
+                "& input::-webkit-calendar-picker-indicator": {
+                  cursor: props.readOnly ? "default" : "pointer",
+                },
+                "& input[type='date']": {
+                  display: "flex",
+                  alignItems: "center",
+                  height: "100%",
+                },
+              }),
+            },
+          },
+          htmlInput:
+            props.type === "number"
+              ? {
+                  onWheel: (e: React.WheelEvent<HTMLInputElement>) =>
+                    e.currentTarget.blur(),
+                  sx: {
+                    MozAppearance: "textfield",
+                    "&::-webkit-inner-spin-button": { display: "none" },
+                    "&::-webkit-outer-spin-button": { display: "none" },
+                  },
+                }
+              : isDateLikeType
+                ? {
+                    sx: {
+                      padding: "0 14px",
+                      height: "100%",
+                      boxSizing: "border-box",
+                    },
+                  }
+                : undefined,
+        }}
+        sx={props.sx}
+        className={props.className}
+      />
+    );
+  }
+
+  if (props.element === "radio" && props.options) {
+    return (
+      <FormControl
+        id={props.id}
+        error={isError}
+        required={props.required}
+        className={props.className}
+      >
+        {props.label && <FormLabel>{props.label}</FormLabel>}
+        <RadioGroup
+          name={props.name}
+          value={String(inputState.value)}
+          onChange={changeHandler}
+          onBlur={touchHandler}
+          row
+        >
+          {props.options.map((option) => (
+            <FormControlLabel
+              key={option.value}
+              value={option.value}
+              control={<Radio />}
+              label={option.label}
+            />
+          ))}
+        </RadioGroup>
+        {isError && props.errorText && (
+          <FormHelperText>{props.errorText}</FormHelperText>
+        )}
+      </FormControl>
+    );
+  }
+
+  if (props.element === "select" && props.options) {
+    return (
+      <TextField
+        id={props.id}
+        select
+        label={props.label}
+        value={inputState.value}
+        onChange={changeHandler}
+        onBlur={touchHandler}
+        error={isError}
+        helperText={isError ? props.errorText : undefined}
+        required={props.required}
+        fullWidth
+        className={props.className}
+        sx={props.sx}
+      >
+        {(props.options as SelectOption[]).map((option) => (
+          <MenuItem
+            key={option.value}
+            value={option.value}
+            disabled={option.disabled}
+          >
+            {option.icon}
+            {option.label}
+          </MenuItem>
+        ))}
+      </TextField>
+    );
+  }
+
+  return null;
+};
+
+export default Input;

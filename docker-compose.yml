@@ -1,0 +1,62 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: pass-hive-frontend
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env
+    command: npm run dev
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pass-hive-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    env_file:
+      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pass-hive-net
+
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: pass-hive-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-passhive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-passhive}
+      POSTGRES_DB: ${POSTGRES_DB:-passhive}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pass-hive-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-passhive}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pass-hive-net
+
+volumes:
+  pass-hive-db-data:
+  frontend_node_modules:
+
+networks:
+  pass-hive-net:
+    driver: bridge

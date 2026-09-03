@@ -1,0 +1,42 @@
+[project]
+name = "pass-hive-backend"
+version = "0.1.0"
+description = "Pass Hive backend — a FastAPI learning project"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy>=2.0.36",
+    "asyncpg>=0.30.0",
+    "pydantic-settings>=2.6.0",
+    "pydantic[email]>=2.9.0",
+    "alembic>=1.14.0",
+    "argon2-cffi>=23.1.0",
+    "pyjwt>=2.13.0",
+]
+
+# This is an app, not a library other people will `pip install`,
+# so we tell uv not to try to build/package it (no build-system needed).
+# Equivalent mental model: a Nest project's package.json has no "main"
+# published to npm — it's just meant to be run.
+[tool.uv]
+package = false
+
+# Nest equivalent: devDependencies in package.json
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "ruff>=0.7.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
