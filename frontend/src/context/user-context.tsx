@@ -67,7 +67,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(true);
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/logout`,
-        { credentials: "include" },
+        {
+          credentials: "include",
+          method: "POST",
+        },
       );
       if (res.ok) {
         setUser(null);

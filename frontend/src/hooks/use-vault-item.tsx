@@ -6,15 +6,14 @@ import { fetchVaultItems, decryptVaultItem } from "@/lib/vault-item";
 import { VaultItemDecrypted } from "@/types/vault";
 
 export function useVaultItems() {
-  const { vaultKey } = useVaultSession();
+  const { vaultKey, clearVaultKey } = useVaultSession();
   const [items, setItems] = useState<VaultItemDecrypted[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!vaultKey) {
-      // No key in memory — this is the "locked" case you're handling
-      // separately. Nothing to fetch/decrypt yet.
+      setItems([]); // clear anything decrypted from a previous unlock
       setIsLoading(false);
       return;
     }

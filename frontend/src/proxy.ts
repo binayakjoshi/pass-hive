@@ -7,7 +7,7 @@ export function proxy(req: NextRequest) {
 
   const authRoutes = ["/login", "/signup"];
 
-  const protectedRoutes = ["/vaults"];
+  const protectedRoutes = ["/vault"];
 
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 

@@ -9,6 +9,7 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Button,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import type { ReactNode } from "react";
@@ -16,6 +17,8 @@ import Sidebar from "./sidebar";
 import ThemeToggle from "@/components/theme-toggle";
 import UserMenu from "./user-menu";
 import { getActivePageInfo } from "./config";
+import { useVaultSession } from "@/context/vault-session";
+import { LockOutlined } from "@mui/icons-material";
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const theme = useTheme();
@@ -25,16 +28,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const pageInfo = getActivePageInfo(pathname);
+  const { clearVaultKey } = useVaultSession();
 
   const pageTitle = (
     <Box sx={{ minWidth: 0 }}>
       {pageInfo && (
         <>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} noWrap>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 600, lineHeight: 1.4 }}
+            noWrap
+          >
             {pageInfo.label}
           </Typography>
           {pageInfo.parentLabel && (
-            <Typography variant="caption" color="text.secondary" noWrap>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ lineHeight: 1.2 }}
+              noWrap
+            >
               {pageInfo.parentLabel}
             </Typography>
           )}
@@ -114,6 +127,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             {pageTitle}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Button onClick={clearVaultKey}>
+                <LockOutlined fontSize="small" sx={{ mr: 1 }} />
+                Lock Vault
+              </Button>
               <ThemeToggle />
               <UserMenu />
             </Box>
