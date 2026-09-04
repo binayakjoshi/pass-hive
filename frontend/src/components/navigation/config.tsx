@@ -22,7 +22,7 @@ export const navItems: NavItem[] = [
   {
     id: "vaults",
     label: "Vaults",
-    href: "/vaults",
+    href: "/vault", // match your actual route
     icon: <LockOutlinedIcon />,
   },
   {
@@ -70,3 +70,36 @@ export const navItems: NavItem[] = [
     ],
   },
 ];
+
+export function getActivePageInfo(
+  pathname: string,
+  items: NavItem[] = navItems,
+): { label: string; parentLabel?: string } | null {
+  let best: {
+    label: string;
+    parentLabel?: string;
+    matchLength: number;
+  } | null = null;
+
+  const consider = (
+    href: string | undefined,
+    label: string,
+    parentLabel?: string,
+  ) => {
+    if (!href) return;
+    if (pathname === href || pathname.startsWith(href + "/")) {
+      if (!best || href.length > best.matchLength) {
+        best = { label, parentLabel, matchLength: href.length };
+      }
+    }
+  };
+
+  for (const item of items) {
+    consider(item.href, item.label);
+    for (const child of item.children ?? []) {
+      consider(child.href, child.label, item.label);
+    }
+  }
+
+  return best;
+}

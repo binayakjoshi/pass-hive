@@ -1,19 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "./theme-registry";
 import { cookies } from "next/headers";
 import { VaultSessionProvider } from "@/context/vault-session";
 import { UserProvider } from "@/context/user-context";
+import { SnackbarProvider } from "@/context/snackbar-context";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
+  weight: ["300", "400", "500", "700"],
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-roboto",
 });
 
 export const metadata: Metadata = {
@@ -26,11 +23,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const initialMode =
     (cookieStore.get("theme-mode")?.value as "light" | "dark") || "light";
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={roboto.variable}>
       <body>
         <VaultSessionProvider>
           <UserProvider>
-            <ThemeRegistry initialMode={initialMode}>{children}</ThemeRegistry>
+            <SnackbarProvider>
+              <ThemeRegistry initialMode={initialMode}>
+                {children}
+              </ThemeRegistry>
+            </SnackbarProvider>
           </UserProvider>
         </VaultSessionProvider>
       </body>

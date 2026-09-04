@@ -174,7 +174,9 @@ const Input: React.FC<CustomInputProps> = (props) => {
             autoComplete: props.autocomplete,
             endAdornment: props.endAdornment,
             sx: {
-              height: props.height ? `${props.height}px` : "56px",
+              ...(props.element !== "textarea" && {
+                height: props.height ? `${props.height}px` : "56px",
+              }),
               ...(isDateLikeType && {
                 "& input::-webkit-calendar-picker-indicator": {
                   cursor: props.readOnly ? "default" : "pointer",

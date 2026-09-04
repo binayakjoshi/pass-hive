@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, IconButton, Alert, CircularProgress } from "@mui/material";
+import { Button, IconButton, CircularProgress } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
 import Input from "@/components/custom-elements/input";
@@ -10,12 +10,14 @@ import { useForm } from "@/hooks/use-form";
 import { VALIDATOR_REQUIRE, VALIDATOR_EMAIL } from "@/lib/validators";
 import { useVaultSession } from "@/context/vault-session";
 import { deriveMasterKey, unwrapVaultKey } from "@/lib/crypto";
+import { useUser } from "@/context/user-context";
+import { useToast } from "@/context/snackbar-context";
 
 export default function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const showToast = useToast();
 
   const [formState, inputHandler] = useForm(
     {
@@ -26,11 +28,12 @@ export default function LoginForm() {
   );
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
   const { setVaultKey } = useVaultSession();
+  const { fetchUser } = useUser();
+
   const submitHandler = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formState.isValid) return;
 
-    setServerError(null);
     setIsLoading(true);
 
     try {
@@ -44,12 +47,12 @@ export default function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, master_password: masterPassword }),
       });
-
       if (!loginRes.ok) {
         const body = await loginRes.json();
         throw new Error(body.message ?? "Login failed");
       }
 
+      fetchUser();
       const vaultRes = await fetch(`${API_URL}/vaults/current`, {
         credentials: "include",
       });
@@ -67,9 +70,10 @@ export default function LoginForm() {
       );
 
       setVaultKey(vaultKey);
+
       router.push("/vault");
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : "Login failed");
+      showToast(err instanceof Error ? err.message : "Login failed", "error");
     } finally {
       setIsLoading(false);
     }
@@ -112,12 +116,6 @@ export default function LoginForm() {
           </IconButton>
         }
       />
-
-      {serverError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {serverError}
-        </Alert>
-      )}
 
       <Button
         type="submit"

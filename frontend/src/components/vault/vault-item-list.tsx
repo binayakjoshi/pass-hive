@@ -12,6 +12,7 @@ import {
   Alert,
   Box,
   Fab,
+  Button,
 } from "@mui/material";
 import {
   VpnKey,
@@ -21,12 +22,17 @@ import {
   Terminal,
   Star,
   Add,
+  LockOutlined,
+  ChevronRight,
 } from "@mui/icons-material";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { useVaultItems } from "@/hooks/use-vault-item";
 import { VaultItemDecrypted, VaultItemType } from "@/types/vault";
 import AddItemModal from "./add-vault-item";
+import UnlockVaultModal from "./unlock-vault-model";
+import VaultItemDetailModal from "./vault-item-detail-modal";
+import DeleteItemConfirm from "./delete-vault-item-modal";
 
 const TYPE_ICON: Record<VaultItemType, ReactNode> = {
   login: <VpnKey fontSize="small" />,
@@ -44,8 +50,6 @@ const TYPE_LABEL: Record<VaultItemType, string> = {
   ssh_key: "SSH Key",
 };
 
-// Best-effort subtitle per type — adjust the field names to match
-// whatever shape your `data` payload actually uses.
 function itemSubtitle(item: VaultItemDecrypted): string {
   switch (item.type) {
     case "login":
@@ -62,21 +66,50 @@ function itemSubtitle(item: VaultItemDecrypted): string {
 }
 
 export default function VaultItemList() {
-  const { items, isLoading, error, locked, reload } = useVaultItems(); // now destructuring reload too
+  const { items, isLoading, error, locked, reload } = useVaultItems();
   const [modalOpen, setModalOpen] = useState(false);
+  const [unlockOpen, setUnlockOpen] = useState(locked);
+
+  const [selectedItem, setSelectedItem] = useState<VaultItemDecrypted | null>(
+    null,
+  );
+  const [editingItem, setEditingItem] = useState<VaultItemDecrypted | null>(
+    null,
+  );
+
+  // Item pending delete confirmation — separate from selectedItem so the
+  // detail modal can close while the confirm dialog takes over.
+  const [deleteTarget, setDeleteTarget] = useState<VaultItemDecrypted | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (locked) setUnlockOpen(true);
+  }, [locked]);
+
   if (locked) {
-    return <Alert severity="warning">Unlock your vault to view items.</Alert>;
+    return (
+      <>
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <LockOutlined sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Your vault is locked.
+          </Typography>
+          <Button variant="contained" onClick={() => setUnlockOpen(true)}>
+            Unlock Vault
+          </Button>
+        </Box>
+        <UnlockVaultModal
+          open={unlockOpen}
+          onClose={() => setUnlockOpen(false)}
+        />
+      </>
+    );
   }
 
   if (isLoading) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          py: 6,
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
         <CircularProgress />
       </Box>
     );
@@ -85,7 +118,6 @@ export default function VaultItemList() {
   if (error) {
     return <Alert severity="error">{error}</Alert>;
   }
-
   if (items.length === 0) {
     return (
       <Box
@@ -123,6 +155,7 @@ export default function VaultItemList() {
             key={item.id}
             divider
             sx={{ borderRadius: 1.5, mb: 0.5 }}
+            onClick={() => setSelectedItem(item)}
           >
             <ListItemAvatar>
               <Avatar
@@ -145,6 +178,10 @@ export default function VaultItemList() {
                 size="small"
                 variant="outlined"
               />
+              <ChevronRight
+                fontSize="small"
+                sx={{ color: "text.disabled", ml: 0.5 }}
+              />
             </Box>
           </ListItemButton>
         ))}
@@ -157,10 +194,36 @@ export default function VaultItemList() {
         <Add />
       </Fab>
 
+      <VaultItemDetailModal
+        open={!!selectedItem}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onEdit={(item) => {
+          setSelectedItem(null);
+          setEditingItem(item);
+        }}
+        onDeleteRequest={(item) => {
+          setSelectedItem(null);
+          setDeleteTarget(item);
+        }}
+      />
+
       <AddItemModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreated={reload}
+      />
+      <AddItemModal
+        open={!!editingItem}
+        item={editingItem}
+        onClose={() => setEditingItem(null)}
+        onCreated={reload}
+      />
+      <DeleteItemConfirm
+        open={!!deleteTarget}
+        item={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={reload}
       />
     </>
   );

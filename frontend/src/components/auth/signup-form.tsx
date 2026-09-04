@@ -13,12 +13,13 @@ import {
   VALIDATOR_EMAIL,
   VALIDATOR_MINLENGTH,
 } from "@/lib/validators";
+import { useToast } from "@/context/snackbar-context";
 
 export default function SignupForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const showToast = useToast();
 
   const [formState, inputHandler] = useForm(
     {
@@ -43,7 +44,6 @@ export default function SignupForm() {
     e.preventDefault();
     if (!canSubmit) return;
 
-    setServerError(null);
     setIsLoading(true);
 
     try {
@@ -75,9 +75,10 @@ export default function SignupForm() {
         throw new Error(body.message ?? "Signup failed");
       }
 
+      showToast("Vault created — you can now log in.", "success");
       router.push("/login");
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : "Signup failed");
+      showToast(err instanceof Error ? err.message : "Signup failed", "error");
     } finally {
       setIsLoading(false);
     }
@@ -141,12 +142,6 @@ export default function SignupForm() {
         Your master password can't be recovered if lost — it's never stored or
         sent anywhere.
       </Alert>
-
-      {serverError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {serverError}
-        </Alert>
-      )}
 
       <Button
         type="submit"

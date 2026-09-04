@@ -1,6 +1,7 @@
 export type VaultItemType = "login" | "card" | "note" | "identity" | "ssh_key";
 
 export interface VaultItemEncrypted {
+  vault_id: string;
   id: string;
   type: VaultItemType;
   encrypted_title: string;
@@ -14,8 +15,11 @@ export interface VaultItemEncrypted {
 
 export interface VaultItemDecrypted {
   id: string;
+  vault_id: string;
   type: VaultItemType;
   title: string;
   data: Record<string, unknown>;
   favorite: boolean;
+  created_at: string;
+  updated_at: string;
 }

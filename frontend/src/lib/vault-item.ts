@@ -28,9 +28,12 @@ export async function decryptVaultItem(
 
   return {
     id: item.id,
+    vault_id: item.vault_id,
     type: item.type,
     title,
     data: JSON.parse(dataJson),
     favorite: item.favorite,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
   };
 }

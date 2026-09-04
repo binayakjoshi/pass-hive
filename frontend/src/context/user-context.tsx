@@ -65,7 +65,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/auth/logout", { credentials: "include" });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/logout`,
+        { credentials: "include" },
+      );
       if (res.ok) {
         setUser(null);
       }

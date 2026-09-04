@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -16,11 +16,13 @@ import {
 import { Close } from "@mui/icons-material";
 
 import Input from "@/components/custom-elements/input";
+import PasswordFieldWithGenerator from "./password-field-generator";
 import { useForm, InputState } from "@/hooks/use-form";
 import { VALIDATOR_REQUIRE } from "@/lib/validators";
 import { encryptField } from "@/lib/crypto";
 import { useVaultSession } from "@/context/vault-session";
-import { VaultItemType } from "@/types/vault";
+import { VaultItemDecrypted, VaultItemType } from "@/types/vault";
+import { useToast } from "@/context/snackbar-context";
 
 const TYPE_OPTIONS = [
   { value: "login", label: "Login" },
@@ -30,20 +32,25 @@ const TYPE_OPTIONS = [
   { value: "ssh_key", label: "SSH Key" },
 ];
 
-// Fields per type. `key` becomes a field inside the JSON `data` blob —
-// `title` is handled separately since it's always its own encrypted column.
 type FieldConfig = {
   key: string;
   label: string;
   type?: string;
   required?: boolean;
   multiline?: boolean;
+  generate?: boolean; // show the dice/generate button (password fields only)
 };
 
 const TYPE_FIELDS: Record<VaultItemType, FieldConfig[]> = {
   login: [
     { key: "username", label: "Username", required: true },
-    { key: "password", label: "Password", type: "password", required: true },
+    {
+      key: "password",
+      label: "Password",
+      type: "password",
+      required: true,
+      generate: true,
+    },
     { key: "url", label: "Website URL" },
     { key: "notes", label: "Notes", multiline: true },
   ],
@@ -66,6 +73,7 @@ const TYPE_FIELDS: Record<VaultItemType, FieldConfig[]> = {
     {
       key: "privateKey",
       label: "Private Key",
+      type: "password",
       multiline: true,
       required: true,
     },
@@ -74,15 +82,23 @@ const TYPE_FIELDS: Record<VaultItemType, FieldConfig[]> = {
   ],
 };
 
-function buildInitialInputs(type: VaultItemType): Record<string, InputState> {
+function buildInitialInputs(
+  type: VaultItemType,
+  prefill?: { title: string; data: Record<string, unknown> },
+): Record<string, InputState> {
   const inputs: Record<string, InputState> = {
-    title: { value: "", isValid: false, touched: false },
+    title: {
+      value: prefill?.title ?? "",
+      isValid: !!prefill?.title,
+      touched: !!prefill,
+    },
   };
   for (const field of TYPE_FIELDS[type]) {
+    const prefillValue = (prefill?.data?.[field.key] as string) ?? "";
     inputs[field.key] = {
-      value: "",
-      isValid: !field.required, // optional fields start valid
-      touched: false,
+      value: prefillValue,
+      isValid: field.required ? !!prefillValue : true,
+      touched: !!prefill,
     };
   }
   return inputs;
@@ -91,7 +107,8 @@ function buildInitialInputs(type: VaultItemType): Record<string, InputState> {
 interface AddItemModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void; // parent reloads the list after a successful save
+  onCreated: () => void; // parent reloads the list after a successful save (add or edit)
+  item?: VaultItemDecrypted | null; // present => edit mode
 }
 
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
@@ -100,27 +117,42 @@ export default function AddItemModal({
   open,
   onClose,
   onCreated,
+  item = null,
 }: AddItemModalProps) {
   const { vaultKey } = useVaultSession();
-  const [type, setType] = useState<VaultItemType>("login");
+  const isEdit = !!item;
+
+  const [type, setType] = useState<VaultItemType>(item?.type ?? "login");
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formState, inputHandler, setFormData] = useForm(
-    buildInitialInputs("login"),
-    false,
+    buildInitialInputs(item?.type ?? "login", item ?? undefined),
+    isEdit, // valid immediately when opened with existing, complete data
   );
 
+  const showToast = useToast();
+  // Re-seed the form whenever the modal is (re)opened for a (possibly
+  // different) item — covers both "open the add modal fresh" and
+  // "open the edit modal for item X after previously editing item Y".
+  useEffect(() => {
+    if (!open) return;
+    const nextType = item?.type ?? "login";
+    setType(nextType);
+    setServerError(null);
+    setFormData(buildInitialInputs(nextType, item ?? undefined), isEdit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, item]);
+
   const handleTypeChange = (_id: string, value: string | boolean) => {
+    if (isEdit) return; // type is locked once an item exists
     const newType = value as VaultItemType;
     setType(newType);
-    setFormData(buildInitialInputs(newType), false); // fresh, empty fields for the new type
+    setFormData(buildInitialInputs(newType), false);
   };
 
   const handleClose = () => {
     setServerError(null);
-    setType("login");
-    setFormData(buildInitialInputs("login"), false);
     onClose();
   };
 
@@ -148,30 +180,44 @@ export default function AddItemModal({
         vaultKey,
       );
 
-      const res = await fetch(`${API_URL}/vaults/items`, {
-        method: "POST",
+      const url = isEdit
+        ? `${API_URL}/vaults/items/${item!.id}`
+        : `${API_URL}/vaults/items`;
+      const method = isEdit ? "PATCH" : "POST";
+
+      const body = isEdit
+        ? { encrypted_title, title_iv, encrypted_data, data_iv }
+        : {
+            type,
+            encrypted_title,
+            title_iv,
+            encrypted_data,
+            data_iv,
+            favorite: false,
+          };
+
+      const res = await fetch(url, {
+        method,
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          encrypted_title,
-          title_iv,
-          encrypted_data,
-          data_iv,
-          favorite: false,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.message ?? "Failed to create item");
+        const resBody = await res.json();
+        throw new Error(
+          resBody.message ?? `Failed to ${isEdit ? "update" : "create"} item`,
+        );
       }
 
       onCreated();
       handleClose();
+      showToast("Vault Item updated successfully", "success");
     } catch (err) {
       setServerError(
-        err instanceof Error ? err.message : "Failed to create item",
+        err instanceof Error
+          ? err.message
+          : `Failed to ${isEdit ? "update" : "create"} item`,
       );
     } finally {
       setIsSubmitting(false);
@@ -188,7 +234,7 @@ export default function AddItemModal({
             justifyContent: "space-between",
           }}
         >
-          Add Item
+          {isEdit ? "Edit Item" : "Add Item"}
           <IconButton onClick={handleClose} size="small">
             <Close fontSize="small" />
           </IconButton>
@@ -211,24 +257,45 @@ export default function AddItemModal({
               element="input"
               type="text"
               label="Title"
+              initialValue={formState.inputs.title.value as string}
+              initialValid={formState.inputs.title.isValid} // add this
               validators={[VALIDATOR_REQUIRE()]}
               errorText="A title is required."
               onInput={inputHandler}
             />
 
-            {TYPE_FIELDS[type].map((field) => (
-              <Input
-                key={`${type}-${field.key}`} // remount on type change → clears stale values
-                id={field.key}
-                element={field.multiline ? "textarea" : "input"}
-                type={field.type ?? "text"}
-                label={field.label}
-                rows={field.multiline ? 3 : undefined}
-                validators={field.required ? [VALIDATOR_REQUIRE()] : []}
-                errorText={`${field.label} is required.`}
-                onInput={inputHandler}
-              />
-            ))}
+            {TYPE_FIELDS[type].map((field) =>
+              field.type === "password" ? (
+                <PasswordFieldWithGenerator
+                  key={`${item?.id ?? "new"}-${type}-${field.key}`}
+                  id={field.key}
+                  label={field.label}
+                  value={(formState.inputs[field.key]?.value as string) ?? ""}
+                  required={field.required}
+                  touched={formState.inputs[field.key]?.touched}
+                  isValid={formState.inputs[field.key]?.isValid}
+                  errorText={`${field.label} is required.`}
+                  allowGenerate={!!field.generate}
+                  onChange={inputHandler}
+                />
+              ) : (
+                <Input
+                  key={`${item?.id ?? "new"}-${type}-${field.key}`}
+                  id={field.key}
+                  element={field.multiline ? "textarea" : "input"}
+                  type={field.type ?? "text"}
+                  label={field.label}
+                  initialValue={
+                    (formState.inputs[field.key]?.value as string) ?? ""
+                  }
+                  initialValid={formState.inputs[field.key]?.isValid} // add this
+                  rows={field.multiline ? 3 : undefined}
+                  validators={field.required ? [VALIDATOR_REQUIRE()] : []}
+                  errorText={`${field.label} is required.`}
+                  onInput={inputHandler}
+                />
+              ),
+            )}
 
             {serverError && <Alert severity="error">{serverError}</Alert>}
           </Stack>
@@ -245,6 +312,8 @@ export default function AddItemModal({
           >
             {isSubmitting ? (
               <CircularProgress size={20} color="inherit" />
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Save"
             )}
