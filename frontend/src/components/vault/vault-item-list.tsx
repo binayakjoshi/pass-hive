@@ -13,6 +13,10 @@ import {
   Box,
   Fab,
   Button,
+  IconButton,
+  TextField,
+  MenuItem,
+  InputAdornment,
 } from "@mui/material";
 import {
   VpnKey,
@@ -20,12 +24,14 @@ import {
   StickyNote2,
   Badge,
   Terminal,
-  Star,
   Add,
   LockOutlined,
   ChevronRight,
+  Star,
+  StarBorder,
+  Search,
 } from "@mui/icons-material";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useVaultItems } from "@/hooks/use-vault-item";
 import { VaultItemDecrypted, VaultItemType } from "@/types/vault";
@@ -50,6 +56,15 @@ const TYPE_LABEL: Record<VaultItemType, string> = {
   ssh_key: "SSH Key",
 };
 
+const TYPE_FILTER_OPTIONS: { value: VaultItemType | "all"; label: string }[] = [
+  { value: "all", label: "All types" },
+  { value: "login", label: "Login" },
+  { value: "card", label: "Card" },
+  { value: "note", label: "Note" },
+  { value: "identity", label: "Identity" },
+  { value: "ssh_key", label: "SSH Key" },
+];
+
 function itemSubtitle(item: VaultItemDecrypted): string {
   switch (item.type) {
     case "login":
@@ -66,9 +81,13 @@ function itemSubtitle(item: VaultItemDecrypted): string {
 }
 
 export default function VaultItemList() {
-  const { items, isLoading, error, locked, reload } = useVaultItems();
+  const { items, isLoading, error, locked, reload, toggleFavorite } =
+    useVaultItems();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(locked);
+  const [typeFilter, setTypeFilter] = useState<VaultItemType | "all">("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [selectedItem, setSelectedItem] = useState<VaultItemDecrypted | null>(
     null,
@@ -76,12 +95,36 @@ export default function VaultItemList() {
   const [editingItem, setEditingItem] = useState<VaultItemDecrypted | null>(
     null,
   );
-
-  // Item pending delete confirmation — separate from selectedItem so the
-  // detail modal can close while the confirm dialog takes over.
   const [deleteTarget, setDeleteTarget] = useState<VaultItemDecrypted | null>(
     null,
   );
+
+  // derived, client-side only — items are already decrypted in memory,
+  // no reload/re-decrypt needed when these change
+  const visibleItems = useMemo(() => {
+    let result = items;
+
+    if (typeFilter !== "all") {
+      result = result.filter((i) => i.type === typeFilter);
+    }
+
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      result = result.filter((i) => i.title.toLowerCase().includes(term));
+    }
+
+    // favorites first, stable order otherwise
+    return [...result].sort((a, b) => Number(b.favorite) - Number(a.favorite));
+  }, [items, typeFilter, searchTerm]);
+
+  const handleToggleFavorite = async (item: VaultItemDecrypted) => {
+    await toggleFavorite(item);
+    setSelectedItem((prev) =>
+      prev && prev.id === item.id
+        ? { ...prev, favorite: !prev.favorite }
+        : prev,
+    );
+  };
 
   useEffect(() => {
     if (locked) setUnlockOpen(true);
@@ -118,14 +161,12 @@ export default function VaultItemList() {
   if (error) {
     return <Alert severity="error">{error}</Alert>;
   }
+
+  // empty vault vs. empty filter result are different states —
+  // only show the "add your first item" CTA when there are truly no items
   if (items.length === 0) {
     return (
-      <Box
-        sx={{
-          textAlign: "center",
-          py: 6,
-        }}
-      >
+      <Box sx={{ textAlign: "center", py: 6 }}>
         <Typography color="text.secondary">
           No items yet — add your first one.
         </Typography>
@@ -149,43 +190,98 @@ export default function VaultItemList() {
 
   return (
     <>
-      <List sx={{ width: "100%" }}>
-        {items.map((item) => (
-          <ListItemButton
-            key={item.id}
-            divider
-            sx={{ borderRadius: 1.5, mb: 0.5 }}
-            onClick={() => setSelectedItem(item)}
-          >
-            <ListItemAvatar>
-              <Avatar
-                sx={{ bgcolor: "action.selected", color: "text.primary" }}
-              >
-                {TYPE_ICON[item.type]}
-              </Avatar>
-            </ListItemAvatar>
-            <ListItemText primary={item.title} secondary={itemSubtitle(item)} />
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-              }}
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
+        <TextField
+          size="small"
+          placeholder="Search by title"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ flexGrow: 1, minWidth: 200 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" sx={{ color: "text.disabled" }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <TextField
+          size="small"
+          select
+          value={typeFilter}
+          onChange={(e) =>
+            setTypeFilter(e.target.value as VaultItemType | "all")
+          }
+          sx={{ minWidth: 140 }}
+        >
+          {TYPE_FILTER_OPTIONS.map((opt) => (
+            <MenuItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Box>
+
+      {visibleItems.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <Typography color="text.secondary">
+            No items match your filters.
+          </Typography>
+        </Box>
+      ) : (
+        <List sx={{ width: "100%" }}>
+          {visibleItems.map((item) => (
+            <ListItemButton
+              key={item.id}
+              divider
+              sx={{ borderRadius: 1.5, mb: 0.5 }}
+              onClick={() => setSelectedItem(item)}
             >
-              {item.favorite && <Star fontSize="small" color="warning" />}
-              <Chip
-                label={TYPE_LABEL[item.type]}
-                size="small"
-                variant="outlined"
+              <ListItemAvatar>
+                <Avatar
+                  sx={{ bgcolor: "action.selected", color: "text.primary" }}
+                >
+                  {TYPE_ICON[item.type]}
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText
+                primary={item.title}
+                secondary={itemSubtitle(item)}
               />
-              <ChevronRight
-                fontSize="small"
-                sx={{ color: "text.disabled", ml: 0.5 }}
-              />
-            </Box>
-          </ListItemButton>
-        ))}
-      </List>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(item);
+                  }}
+                >
+                  {item.favorite ? (
+                    <Star fontSize="small" color="warning" />
+                  ) : (
+                    <StarBorder
+                      fontSize="small"
+                      sx={{ color: "text.disabled" }}
+                    />
+                  )}
+                </IconButton>
+                <Chip
+                  label={TYPE_LABEL[item.type]}
+                  size="small"
+                  variant="outlined"
+                />
+                <ChevronRight
+                  fontSize="small"
+                  sx={{ color: "text.disabled", ml: 0.5 }}
+                />
+              </Box>
+            </ListItemButton>
+          ))}
+        </List>
+      )}
+
       <Fab
         color="primary"
         onClick={() => setModalOpen(true)}
@@ -206,6 +302,7 @@ export default function VaultItemList() {
           setSelectedItem(null);
           setDeleteTarget(item);
         }}
+        onToggleFavorite={handleToggleFavorite}
       />
 
       <AddItemModal

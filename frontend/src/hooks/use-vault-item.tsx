@@ -6,7 +6,7 @@ import { fetchVaultItems, decryptVaultItem } from "@/lib/vault-item";
 import { VaultItemDecrypted } from "@/types/vault";
 
 export function useVaultItems() {
-  const { vaultKey, clearVaultKey } = useVaultSession();
+  const { vaultKey } = useVaultSession();
   const [items, setItems] = useState<VaultItemDecrypted[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +49,37 @@ export function useVaultItems() {
       setIsLoading(false);
     }
   }, [vaultKey]);
+  const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+
+  const toggleFavorite = useCallback(async (item: VaultItemDecrypted) => {
+    const nextFavorite = !item.favorite;
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id ? { ...i, favorite: nextFavorite } : i,
+      ),
+    );
+
+    try {
+      const res = await fetch(`${API_URL}/vaults/items/${item.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ favorite: nextFavorite }),
+      });
+      if (!res.ok) throw new Error("Failed to update favorite");
+    } catch (err) {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, favorite: item.favorite } : i,
+        ),
+      );
+      throw err;
+    }
+  }, []);
 
   useEffect(() => {
     reload();
   }, [reload]);
-
-  return { items, isLoading, error, locked: !vaultKey, reload };
+  return { items, isLoading, error, locked: !vaultKey, reload, toggleFavorite };
 }

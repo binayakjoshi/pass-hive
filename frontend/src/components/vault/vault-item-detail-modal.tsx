@@ -30,6 +30,7 @@ import {
   Badge,
   Terminal,
   Star,
+  StarBorder,
 } from "@mui/icons-material";
 import { VaultItemDecrypted, VaultItemType } from "@/types/vault";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -65,14 +66,15 @@ interface Props {
   onClose: () => void;
   onEdit: (item: VaultItemDecrypted) => void;
   onDeleteRequest: (item: VaultItemDecrypted) => void;
+  onToggleFavorite: (item: VaultItemDecrypted) => void; // new
 }
-
 export default function VaultItemDetailModal({
   open,
   item,
   onClose,
   onEdit,
   onDeleteRequest,
+  onToggleFavorite,
 }: Props) {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [copiedMsg, setCopiedMsg] = useState<string | null>(null);
@@ -120,13 +122,26 @@ export default function VaultItemDetailModal({
                 sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.25 }}
               >
                 <Chip label={TYPE_LABEL[item.type]} size="small" />
-                {item.favorite && (
-                  <Star
-                    fontSize="small"
-                    color="warning"
-                    sx={{ fontSize: 18 }}
-                  />
-                )}
+                <Tooltip
+                  title={
+                    item.favorite ? "Remove from favorites" : "Add to favorites"
+                  }
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => onToggleFavorite(item)}
+                    sx={{ p: 0.25 }}
+                  >
+                    {item.favorite ? (
+                      <Star fontSize="small" color="warning" />
+                    ) : (
+                      <StarBorder
+                        fontSize="small"
+                        sx={{ color: "text.disabled" }}
+                      />
+                    )}
+                  </IconButton>
+                </Tooltip>
               </Box>
             </Box>
           </Box>

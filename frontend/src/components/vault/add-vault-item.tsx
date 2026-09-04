@@ -12,8 +12,11 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  FormControlLabel,
+  Switch,
+  Box,
 } from "@mui/material";
-import { Close } from "@mui/icons-material";
+import { Close, Star, StarBorder } from "@mui/icons-material";
 
 import Input from "@/components/custom-elements/input";
 import PasswordFieldWithGenerator from "./password-field-generator";
@@ -130,7 +133,7 @@ export default function AddItemModal({
     buildInitialInputs(item?.type ?? "login", item ?? undefined),
     isEdit, // valid immediately when opened with existing, complete data
   );
-
+  const [favorite, setFavorite] = useState<boolean>(item?.favorite ?? false);
   const showToast = useToast();
   // Re-seed the form whenever the modal is (re)opened for a (possibly
   // different) item — covers both "open the add modal fresh" and
@@ -140,6 +143,7 @@ export default function AddItemModal({
     const nextType = item?.type ?? "login";
     setType(nextType);
     setServerError(null);
+    setFavorite(item?.favorite ?? false);
     setFormData(buildInitialInputs(nextType, item ?? undefined), isEdit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item]);
@@ -186,7 +190,7 @@ export default function AddItemModal({
       const method = isEdit ? "PATCH" : "POST";
 
       const body = isEdit
-        ? { encrypted_title, title_iv, encrypted_data, data_iv }
+        ? { encrypted_title, title_iv, encrypted_data, data_iv, favorite }
         : {
             type,
             encrypted_title,
@@ -251,19 +255,39 @@ export default function AddItemModal({
               onInput={handleTypeChange}
               validators={[VALIDATOR_REQUIRE()]}
             />
-
-            <Input
-              id="title"
-              element="input"
-              type="text"
-              label="Title"
-              initialValue={formState.inputs.title.value as string}
-              initialValid={formState.inputs.title.isValid} // add this
-              validators={[VALIDATOR_REQUIRE()]}
-              errorText="A title is required."
-              onInput={inputHandler}
-            />
-
+            <Box sx={{ position: "relative" }}>
+              <Input
+                id="title"
+                element="input"
+                type="text"
+                label="Title"
+                initialValue={formState.inputs.title.value as string}
+                initialValid={formState.inputs.title.isValid}
+                validators={[VALIDATOR_REQUIRE()]}
+                errorText="A title is required."
+                onInput={inputHandler}
+              />
+              {isEdit && (
+                <IconButton
+                  size="small"
+                  onClick={() => setFavorite((f) => !f)}
+                  sx={{
+                    position: "absolute",
+                    right: 16,
+                    top: 16, // fixed offset from the label row, not a % of total box height
+                  }}
+                >
+                  {favorite ? (
+                    <Star fontSize="small" color="warning" />
+                  ) : (
+                    <StarBorder
+                      fontSize="small"
+                      sx={{ color: "text.disabled" }}
+                    />
+                  )}
+                </IconButton>
+              )}
+            </Box>{" "}
             {TYPE_FIELDS[type].map((field) =>
               field.type === "password" ? (
                 <PasswordFieldWithGenerator
@@ -296,7 +320,6 @@ export default function AddItemModal({
                 />
               ),
             )}
-
             {serverError && <Alert severity="error">{serverError}</Alert>}
           </Stack>
         </DialogContent>
