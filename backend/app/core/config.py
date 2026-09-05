@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
 
+    redis_url: str = "redis://redis:6379/0"
+    gmail_address: str
+    gmail_app_password: str
+
     @property
     def database_url(self) -> str:
         return (

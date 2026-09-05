@@ -10,6 +10,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.redis import get_redis
+from redis.asyncio import Redis
+from fastapi import Depends
 from app.db.session import get_db
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -25,3 +28,9 @@ async def health_check_db(db: AsyncSession = Depends(get_db)) -> dict:
     result = await db.execute(text("SELECT 1"))
     result.scalar_one()
     return {"status": "ok", "database": "connected"}
+
+
+@router.get("/redis")
+async def health_redis(redis: Redis = Depends(get_redis)):
+    pong = await redis.ping()
+    return {"redis": "ok" if pong else "unreachable"}

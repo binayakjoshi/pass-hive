@@ -9,6 +9,7 @@ file starts doing more (permission checks, multi-step logic), that's
 the natural point to peel a service layer out — not before.
 """
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,4 +78,5 @@ async def delete_me(
     current_user: User = Depends(get_current_user),
 ) -> None:
     current_user.delete_status = True
+    current_user.deleted_at = datetime.now(timezone.utc)
     await db.commit()

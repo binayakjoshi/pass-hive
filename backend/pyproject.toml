@@ -13,6 +13,8 @@ dependencies = [
     "alembic>=1.14.0",
     "argon2-cffi>=23.1.0",
     "pyjwt>=2.13.0",
+    "redis>=8.1.0",
+    "aiosmtplib>=5.1.2",
 ]
 
 # This is an app, not a library other people will `pip install`,

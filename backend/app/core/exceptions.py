@@ -1,9 +1,20 @@
-# app/core/exceptions.py
 class AppException(Exception):
-    def __init__(self, status_code: int, code: str, message: str):
+    def __init__(self, status_code: int, code: str, message: str, data: dict | None = None):
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.data = data  # NEW — optional extra payload for the client
+        super().__init__(message)
+
+
+class UserNotVerifiedException(AppException):
+    def __init__(self, otp_expires_in: int):
+        super().__init__(
+            status_code=403,
+            code="USER_NOT_VERIFIED",
+            message="Please verify your account via the OTP sent to your email.",
+            data={"otp_expires_in": otp_expires_in},
+        )
 
 
 class UserNotFoundException(AppException):
@@ -43,3 +54,18 @@ class VaultNotFoundExceiption(AppException):
 class VaultItemNotFoundExceiption(AppException):
     def __init__(self):
         super().__init__(404, "VAULT_ITEM_NOT_FOUND", "Vault item not found for current user.")
+
+
+class InvalidOtpException(AppException):
+    def __init__(self):
+        super().__init__(400, "INVALID_OTP", "Invalid or expired otp.")
+
+
+class OtpCooldownException(AppException):
+    def __init__(self, cooldown_seconds: int):
+        super().__init__(
+            status_code=429,
+            code="OTP_COOLDOWN",
+            message="Please wait before requesting another code.",
+            data={"cooldown_seconds": cooldown_seconds},
+        )

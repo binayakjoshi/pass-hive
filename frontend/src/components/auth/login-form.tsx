@@ -28,7 +28,7 @@ export default function LoginForm() {
   );
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
   const { setVaultKey } = useVaultSession();
-  const { fetchUser } = useUser();
+  const { fetchUser, setPendingVerification } = useUser();
 
   const submitHandler = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +49,15 @@ export default function LoginForm() {
       });
       if (!loginRes.ok) {
         const body = await loginRes.json();
+        if (body.code == "USER_NOT_VERIFIED") {
+          setPendingVerification({
+            email: formState.inputs.email.value as string,
+            expiresAt: Date.now() + body.data.otp_expires_in * 1000,
+          });
+          showToast(body.message, "info");
+          router.push("/verify-otp");
+          return;
+        }
         throw new Error(body.message ?? "Login failed");
       }
 

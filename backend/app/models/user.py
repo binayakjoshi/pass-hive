@@ -45,5 +45,10 @@ class User(Base):
     )
     delete_status: Mapped[bool] = mapped_column(Boolean, server_default="false")
 
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None, nullable=True
+    )
+    verification_status: Mapped[bool] = mapped_column(Boolean, server_default="false")
+
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email!r}>"

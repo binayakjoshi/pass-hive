@@ -9,6 +9,9 @@ registering a controller's module in `imports: []`.
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from typing import Any
+from fastapi.responses import JSONResponse
+
 from app.api.routes import health, users
 from app.api.routes import vault
 from app.api.routes import auth
@@ -17,13 +20,19 @@ from app.core.exceptions import AppException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
+from contextlib import asynccontextmanager
+from app.db.redis import redis_pool
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await redis_pool.disconnect()
+
+
 settings = get_settings()
 
-app = FastAPI(
-    title="Pass Hive API",
-    version="0.1.0",
-    debug=settings.debug,
-)
+app = FastAPI(title="Pass Hive API", version="0.1.0", debug=settings.debug, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,11 +48,16 @@ app.include_router(vault.router)
 
 
 @app.exception_handler(AppException)
-async def app_execption_handler(request: Request, exc: AppException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"code": exc.code, "message": exc.message},
-    )
+async def app_exception_handler(request: Request, exc: AppException):
+    body: dict[str, Any] = {
+        "code": exc.code,
+        "message": exc.message,
+    }
+
+    if exc.data is not None:
+        body["data"] = exc.data
+
+    return JSONResponse(status_code=exc.status_code, content=body)
 
 
 @app.exception_handler(RequestValidationError)
