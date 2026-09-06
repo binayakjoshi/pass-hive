@@ -1,18 +1,29 @@
+from email.message import EmailMessage
 import aiosmtplib
-from email.mime.text import MIMEText
+
 from app.core.config import get_settings
+from app.core.email_templates import render_otp_email, render_otp_email_plaintext
 
 settings = get_settings()
 
 
-async def send_otp_email(to_email: str, otp: str) -> None:
-    msg = MIMEText(f"Your verification code is: {otp}\nExpires in 10 minutes.")
-    msg["Subject"] = "Your pass-hive verification code"
-    msg["From"] = settings.gmail_address
-    msg["To"] = to_email
+async def send_otp_email(to_email: str, otp: str, expires_in_minutes: int = 10) -> None:
+    message = EmailMessage()
+    message["Subject"] = "Your Pass Hive verification code"
+    message["From"] = settings.gmail_address
+    message["To"] = to_email
+
+    # Plain text fallback
+    message.set_content(render_otp_email_plaintext(otp, expires_in_minutes))
+
+    # HTML version
+    message.add_alternative(
+        render_otp_email(otp, expires_in_minutes),
+        subtype="html",
+    )
 
     await aiosmtplib.send(
-        msg,
+        message,
         hostname="smtp.gmail.com",
         port=587,
         start_tls=True,

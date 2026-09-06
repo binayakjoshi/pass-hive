@@ -15,6 +15,7 @@ dependencies = [
     "pyjwt>=2.13.0",
     "redis>=8.1.0",
     "aiosmtplib>=5.1.2",
+    "arq>=0.25.0",
 ]
 
 # This is an app, not a library other people will `pip install`,

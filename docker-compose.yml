@@ -64,6 +64,17 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+  
+  worker:
+    build: ./backend
+    command:  uv run watchfiles "arq app.worker.WorkerSettings" app
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ./backend/.env
 
 volumes:
   pass-hive-db-data:

@@ -1,6 +1,8 @@
+from arq import ArqRedis
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
+from app.core import queue
 from app.core.email import send_otp_email
 from app.core.otp import OTP_TTL_SECONDS, get_cooldown_remaining, issue_otp, verify_otp
 from redis.asyncio import Redis
@@ -32,6 +34,7 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
+    queue: ArqRedis = Depends(queue.get_queue),
 ):
     result = await db.execute(
         select(User).where(User.email == payload.email, User.delete_status == False)
@@ -43,7 +46,7 @@ async def login(
     if not user.verification_status:
         otp = await issue_otp(redis, str(user.id))
         if otp is not None:
-            await send_otp_email(user.email, otp)
+            await queue.enqueue_job("send_otp_email_job", user.email, otp)
         raise UserNotVerifiedException(otp_expires_in=600)
 
     access_token = generate_access_token(subject=str(user.id))
@@ -87,15 +90,13 @@ async def resend_otp_route(
     payload: ResendOtpRequest,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
+    queue: ArqRedis = Depends(queue.get_queue),
 ):
     result = await db.execute(
         select(User).where(User.email == payload.email, User.delete_status == False)
     )
     user = result.scalar_one_or_none()
 
-    # Don't reveal whether the account exists or is already verified —
-    # same generic response either way. Frontend just shows "code sent"
-    # and lets the (already-visible) countdown be the real signal.
     if user is None or user.verification_status:
         return {"message": "If an account exists, a new code has been sent."}
 
@@ -105,7 +106,7 @@ async def resend_otp_route(
 
     otp = await issue_otp(redis, str(user.id))
     if otp is not None:
-        await send_otp_email(user.email, otp)
+        await queue.enqueue_job("send_otp_email_job", user.email, otp)
 
     return {"message": "A new code has been sent.", "data": {"otp_expires_in": OTP_TTL_SECONDS}}
 

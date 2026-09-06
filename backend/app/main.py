@@ -21,12 +21,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from contextlib import asynccontextmanager
+from app.core.queue import close_arq_pool
 from app.db.redis import redis_pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
+    await close_arq_pool()
     await redis_pool.disconnect()
 
 

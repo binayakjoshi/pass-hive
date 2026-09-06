@@ -9,11 +9,14 @@ file starts doing more (permission checks, multi-step logic), that's
 the natural point to peel a service layer out — not before.
 """
 
-from datetime import datetime, timezone
+from arq import ArqRedis
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from datetime import timedelta
+
+from app.core.queue import get_queue
 from app.db.session import get_db
 from app.models.user import User
 from app.models.vault import Vault
@@ -72,11 +75,17 @@ async def update_me(
     return current_user
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/me")
 async def delete_me(
-    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> None:
+    db: AsyncSession = Depends(get_db),
+    queue: ArqRedis = Depends(get_queue),
+):
     current_user.delete_status = True
-    current_user.deleted_at = datetime.now(timezone.utc)
     await db.commit()
+    await queue.enqueue_job(
+        "hard_delete_user_job",
+        str(current_user.id),
+        _defer_by=timedelta(days=30),
+    )
+    return {"message": "Account deactivated."}
