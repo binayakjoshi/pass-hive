@@ -19,7 +19,7 @@ Deliberately three separate classes, not one reused everywhere:
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, model_validator
 
 
 class UserCreate(BaseModel):
@@ -30,8 +30,23 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    email: EmailStr | None = None
-    master_password: str | None = Field(default=None, min_length=8, max_length=256)
+    current_master_password: str | None = None
+    new_master_password: str | None = None
+    encrypted_vault_key: str | None = None
+    vault_key_iv: str | None = None
+    master_password_hint: str | None = None
+    two_factor_enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_pairing(self) -> "UserUpdate":
+        # Same ciphertext/IV pairing rule as VaultItemUpdate — a password
+        # change always produces a new wrapped vault key, so one without
+        # the other is invalid.
+        if bool(self.new_master_password) != bool(self.encrypted_vault_key and self.vault_key_iv):
+            raise ValueError(
+                "new_master_password requires both encrypted_vault_key and vault_key_iv"
+            )
+        return self
 
 
 class UserRead(BaseModel):

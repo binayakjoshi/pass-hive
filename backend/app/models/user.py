@@ -24,7 +24,7 @@ in their own encrypted model later, not here.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func, Boolean
+from sqlalchemy import DateTime, String, func, Boolean, null, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -49,6 +49,10 @@ class User(Base):
         DateTime(timezone=True), default=None, nullable=True
     )
     verification_status: Mapped[bool] = mapped_column(Boolean, server_default="false")
+
+    master_password_hint: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    two_factor_enabled: Mapped[bool] = mapped_column(Boolean, server_default="false")
 
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email!r}>"

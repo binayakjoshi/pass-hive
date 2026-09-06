@@ -78,3 +78,13 @@ class AccountPendingReactivationException(AppException):
             code="ACCOUNT_PENDING_REACTIVATION",
             message="This account was deactivated. Log in again to reactivate it.",
         )
+
+
+class TwoFactorRequiredException(AppException):
+    def __init__(self, otp_expires_in: int):
+        super().__init__(
+            status_code=403,
+            code="TWO_FACTOR_REQUIRED",
+            message="Enter the verification code sent to your email.",
+            data={"otp_expires_in": otp_expires_in},
+        )
