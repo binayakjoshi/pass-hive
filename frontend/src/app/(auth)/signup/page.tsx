@@ -9,7 +9,7 @@ export default function SignupPage() {
       title="Create your vault"
       subtitle="One master password to secure everything else"
       footer={
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
           Already have a vault?{" "}
           <Link href="/login" style={{ color: "inherit", fontWeight: 600 }}>
             Log in

@@ -1,19 +1,29 @@
 import Link from "next/link";
-
 import { Box, Button, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { getTheme } from "@/app/theme"; // adjust to your actual theme file path
+
+const theme = getTheme("light"); // pick the mode you want these pages to render in
+
+const blobBackground = `radial-gradient(circle, ${alpha(
+  theme.palette.primary.main,
+  0.08,
+)} 0%, transparent 70%)`;
+
+const headingGradient = `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.light} 50%, ${theme.palette.primary.dark} 100%)`;
 
 export default function NotFound() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        position: "fixed",
+        inset: 0,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         bgcolor: "background.default",
         color: "text.primary",
-        position: "relative",
         overflow: "hidden",
         px: 3,
       }}
@@ -24,22 +34,20 @@ export default function NotFound() {
           width: 500,
           height: 500,
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(var(--mui-palette-primary-mainChannel) / 0.08) 0%, transparent 70%)",
+          background: blobBackground,
           filter: "blur(80px)",
           pointerEvents: "none",
           top: "20%",
         }}
       />
-
       <Typography
         component="h1"
         sx={{
           fontSize: "clamp(7rem, 15vw, 11rem)",
           fontWeight: 800,
           lineHeight: 1,
-          background:
-            "linear-gradient(135deg, var(--mui-palette-primary-dark) 0%, var(--mui-palette-primary-light) 50%, var(--mui-palette-primary-dark) 100%)",
+          background: headingGradient,
+          backgroundClip: "text",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           letterSpacing: "-0.04em",
@@ -49,7 +57,6 @@ export default function NotFound() {
       >
         404
       </Typography>
-
       <Typography
         variant="h5"
         sx={{
@@ -59,7 +66,6 @@ export default function NotFound() {
       >
         Page not found
       </Typography>
-
       <Typography
         sx={{
           mt: 1.5,
@@ -73,7 +79,7 @@ export default function NotFound() {
         The page you&apos;re looking for doesn&apos;t exist or has been moved.
         Let&apos;s get you back on track.
       </Typography>
-      <Link href="/">
+      <Link href="/" style={{ textDecoration: "none" }}>
         <Button variant="contained" color="primary">
           Back to Home
         </Button>
@@ -89,14 +95,7 @@ export default function NotFound() {
           gap: 1.5,
         }}
       >
-        <Box
-          sx={{
-            width: 32,
-            height: 1,
-            bgcolor: "divider",
-          }}
-        />
-
+        <Box sx={{ width: 32, height: 1, bgcolor: "divider" }} />
         <Typography
           variant="caption"
           sx={{
@@ -105,16 +104,9 @@ export default function NotFound() {
             textTransform: "uppercase",
           }}
         >
-          TruthLens Forensics
+          Pass-hive
         </Typography>
-
-        <Box
-          sx={{
-            width: 32,
-            height: 1,
-            bgcolor: "divider",
-          }}
-        />
+        <Box sx={{ width: 32, height: 1, bgcolor: "divider" }} />
       </Box>
     </Box>
   );

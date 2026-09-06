@@ -8,10 +8,8 @@ import {
   Typography,
   TextField,
   Button,
-  Alert,
   Stack,
   LinearProgress,
-  Fade,
 } from "@mui/material";
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined";
 import { useUser } from "@/context/user-context";
@@ -253,12 +251,14 @@ export default function VerifyOtpPage() {
           </Typography>
           <Typography
             variant="body2"
-            color="text.secondary"
-            sx={{ textAlign: "center" }}
+            sx={{ textAlign: "center", color: "text.secondary" }}
           >
             Enter the {OTP_LENGTH}-digit code sent to
             <br />
-            <Box component="span" sx={{ fontWeight: 600 }} color="text.primary">
+            <Box
+              component="span"
+              sx={{ fontWeight: 600, color: "text.primary" }}
+            >
               {pendingVerification.email}
             </Box>
           </Typography>
@@ -280,8 +280,12 @@ export default function VerifyOtpPage() {
           />
           <Typography
             variant="caption"
-            color={secondsLeft === 0 ? "error" : "text.secondary"}
-            sx={{ display: "block", textAlign: "center", mt: 0.75 }}
+            sx={{
+              display: "block",
+              textAlign: "center",
+              mt: 0.75,
+              color: secondsLeft === 0 ? "error.main" : "text.secondary",
+            }}
           >
             {secondsLeft > 0
               ? `Code expires in ${format(secondsLeft)}`
@@ -305,7 +309,7 @@ export default function VerifyOtpPage() {
           spacing={0.5}
           sx={{ justifyContent: "center", alignItems: "center", mt: 2 }}
         >
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
             Didn't get a code?
           </Typography>
           <Button

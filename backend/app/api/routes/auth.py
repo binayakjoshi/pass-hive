@@ -13,6 +13,7 @@ from app.schemas.auth import LoginRequest, ResendOtpRequest, VerifyOtpRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import verify_password, generate_access_token
 from app.core.exceptions import (
+    AccountPendingReactivationException,
     InvalidCredentialsException,
     InvalidOtpException,
     OtpCooldownException,
@@ -36,13 +37,15 @@ async def login(
     redis: Redis = Depends(get_redis),
     queue: ArqRedis = Depends(queue.get_queue),
 ):
-    result = await db.execute(
-        select(User).where(User.email == payload.email, User.delete_status == False)
-    )
+    result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(payload.master_password, user.hashed_master_password):
         raise InvalidCredentialsException()
 
+    if user.delete_status:
+        if not payload.confirm_reactivation:
+            raise AccountPendingReactivationException()
+        user.delete_status = False
     if not user.verification_status:
         otp = await issue_otp(redis, str(user.id))
         if otp is not None:
@@ -50,6 +53,7 @@ async def login(
         raise UserNotVerifiedException(otp_expires_in=600)
 
     access_token = generate_access_token(subject=str(user.id))
+    await db.commit()
     response.set_cookie(
         key="access_token",
         value=access_token,

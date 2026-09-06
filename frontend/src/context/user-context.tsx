@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, {
   createContext,
   useCallback,
@@ -31,6 +32,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingVerification, setPendingVerification] =
     useState<PendingVerification>(null);
+  const router = useRouter();
   const fetchUser = useCallback(() => {
     void (async () => {
       try {
@@ -70,6 +72,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       );
       if (res.ok) {
         setUser(null);
+        router.refresh();
       }
     } finally {
       setIsLoading(false);

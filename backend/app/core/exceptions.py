@@ -69,3 +69,12 @@ class OtpCooldownException(AppException):
             message="Please wait before requesting another code.",
             data={"cooldown_seconds": cooldown_seconds},
         )
+
+
+class AccountPendingReactivationException(AppException):
+    def __init__(self):
+        super().__init__(
+            status_code=403,
+            code="ACCOUNT_PENDING_REACTIVATION",
+            message="This account was deactivated. Log in again to reactivate it.",
+        )
